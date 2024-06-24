@@ -18,6 +18,8 @@ class CreateBusinessesTable extends Migration
             $table->id();
             $table->string('business_name');
             $table->foreignIdFor(Client::class);
+            $table->string('token');
+            $table->integer('revoked')->default(0);
             $table->timestamps();
         });
     }

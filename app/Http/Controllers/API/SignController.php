@@ -5,6 +5,7 @@ namespace App\Http\Controllers\API;
 use App\Events\signatureRequest;
 use App\Http\Controllers\Controller;
 use App\Models\autentic;
+use App\Models\Business;
 use App\Models\firma;
 use App\Models\tokenView;
 use App\Models\User;
@@ -19,7 +20,6 @@ use Laravel\Passport\Client;
 use PDF;
 use PDFMerger;
 
-use function PHPUnit\Framework\isNull;
 
 class SignController extends Controller
 {
@@ -45,7 +45,7 @@ class SignController extends Controller
      */
     public function store(Request $request)
     {
-        //delegar la responsabilidad de verificacion a la plataforma
+        //Delegar la responsabilidad de verificacion a la plataforma
         //Recordar hacer una validacion de datos
         $evaluate = ValidateRequest::evaluate($request,'Sign');
         if(!empty($evaluate)) {
@@ -119,7 +119,7 @@ class SignController extends Controller
 
 
         if($firma->otp !== $request->otp){
-            return 'El codigo otp esta erroneo';
+            return Redirect("/custody/$request->token")->with('otp',true);
         }else{
            $firma->status=1;
            $firma->save();
@@ -135,12 +135,20 @@ class SignController extends Controller
     public function Generatefirma($firmas)
     {
         //mejorar querys con relaciones
+
+        date_default_timezone_set('America/Bogota');
     
         $client =  User::find($firmas[0]->user_id)->client_id;
+        $dateClient = Client::find($client);
         $users = User::where('client_id',$client)->get();
+        $autentic = autentic::all();
+        $business = Business::all();
         $pdf = PDF::loadView('firmas.firma',[
             'firmas'=>$firmas,
-            'usuarios'=>$users
+            'usuarios'=>$users,
+            'autentic'=>$autentic,
+            'cliente'=>$dateClient,
+            'negocios'=>$business
         ])
         ->save(storage_path('/app/public/signature/') .$client. 'archivo.pdf');
     }
@@ -195,11 +203,16 @@ class SignController extends Controller
     public function process(Request $request)
     {
         //Hacer la validaciones correctas
+        //Hacer validaciones de fecha
         $firma = firma::find($request->firma_id);
         $user =User::find($request->user_id);
+        $registro = tokenView::where('tokenView',$request->token)->first();
        
         if(!Hash::check($request->password,$user->password)){
-            return "Contraseña erronea";
+            return view('custody.autentic',[
+                'registro' => $registro,
+                'mensaje'=>'Error en las credenciales'
+            ]);
         }
 
 
